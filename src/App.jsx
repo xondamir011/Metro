@@ -1331,16 +1331,11 @@ export default function App() {
             </p>
           </div>
 
-          <button
-            onClick={() =>
-              setTheme((value) =>
-                value === "dark" ? "light" : "dark"
-              )
-            }
-            className="rounded-xl border border-[var(--border)] p-2.5 hover:bg-[var(--soft)]"
+          <button onClick={() => setTheme((value) => value === "dark" ? "light" : "dark") }
+            className="rounded-xl cursor-pointer border border-[var(--border)] p-2.5 hover:bg-[var(--soft)]"
             aria-label="Mavzuni almashtirish"
-            title="Mavzuni almashtirish"
-          >
+            title="Mavzuni almashtirish">
+              
             {theme === "dark" ? (
               <Sun size={18} />
             ) : (
