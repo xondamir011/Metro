@@ -83,23 +83,58 @@ function bearing(a, b) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-function makeDir(line, pts, offsetSec) {
+const TRANSFER_STATIONS = new Set([
+  "paxtakor", "alishernavoiy", "oybek", "mingorik",
+  "yunusrajabiy", "amirtemurxiyoboni", "chinor", "qipchoq",
+  "dostlik", "texnopark",
+]);
+
+function isPeakTime(t) {
+  const local = ((t % DAY) + DAY) % DAY;
+  return PEAKS.some(([a, b]) => local >= a && local < b);
+}
+
+function stationDwellSec(stationName, peak) {
+  const key = normalize(stationName);
+  if (!TRANSFER_STATIONS.has(key)) return DWELL;
+  // Almashuv bekatlarida yo‘lovchi oqimi sababli poyezd ko‘proq kutadi.
+  return peak ? 115 : 65;
+}
+
+function makeDir(line, pts, offsetSec, departureAt = null, singleDeparture = false) {
   const n = pts.length;
+  const peak = isPeakTime(departureAt ?? (line.startSec + offsetSec));
   const dist = [];
   for (let i = 0; i < n - 1; i++) dist.push(haversine(pts[i], pts[i + 1]));
   const sum = dist.reduce((s, x) => s + x, 0) || 1;
-  const moveTotal = Math.max(60, line.runMin * 60 - DWELL * Math.max(0, n - 2));
-  const travel = dist.map((d) => (moveTotal * d) / sum);
+
+  const dwell = pts.map((p, i) =>
+    i === 0 ? 0 : stationDwellSec(p.name, peak)
+  );
+  // Tig‘iz vaqtda almashuv bekatlari oldidagi segmentlarda tezlik pasayadi.
+  const segmentWeights = dist.map((d, i) => {
+    const nextKey = normalize(pts[i + 1]?.name);
+    const nearTransfer = TRANSFER_STATIONS.has(nextKey);
+    return d * (nearTransfer ? (peak ? 1.8 : 1.35) : 1);
+  });
+  const weightedSum = segmentWeights.reduce((a, b) => a + b, 0) || 1;
+  const baseMoveTotal = Math.max(60, line.runMin * 60 - DWELL * Math.max(0, n - 2));
+  const moveTotal = baseMoveTotal * (peak ? 1.12 : 1);
+  const travel = segmentWeights.map((w) => (moveTotal * w) / weightedSum);
 
   const a = [0];
   const d = [0];
   for (let i = 0; i < n - 1; i++) {
     a[i + 1] = d[i] + travel[i];
-    d[i + 1] = a[i + 1] + (i + 1 < n - 1 ? DWELL : TERM_DWELL);
+    d[i + 1] = a[i + 1] + (i + 1 < n - 1 ? dwell[i + 1] : TERM_DWELL);
   }
 
   const deps = [];
-  for (let t = line.startSec + offsetSec; t < line.endSec; t += headwaySec(line, t)) deps.push(Math.round(t));
+  if (singleDeparture && departureAt != null) {
+    deps.push(Math.round(departureAt));
+  } else {
+    for (let t = line.startSec + offsetSec; t < line.endSec; t += headwaySec(line, t)) deps.push(Math.round(t));
+  }
 
   return {
     pts, dist, travel, a, d, deps,
@@ -146,28 +181,38 @@ function stateAt(D, e) {
 function buildEngine(routes) {
   const items = routes
     .filter((r) => r.pts.length >= 2)
-    .map(({ line, pts }) => ({
-      line,
-      dirs: {
-        fwd: makeDir(line, pts, 0),
-        back: makeDir(line, [...pts].reverse(), 60),
-      },
-    }));
+    .map(({ line, pts }) => {
+      const dirs = {};
+      for (const dir of ["fwd", "back"]) {
+        const dirPts = dir === "fwd" ? pts : [...pts].reverse();
+        const offset = dir === "fwd" ? 0 : 60;
+        const departures = [];
+        for (let t = line.startSec + offset; t < line.endSec; t += headwaySec(line, t)) {
+          departures.push(Math.round(t));
+        }
+        // Har bir qatnov o‘z jo‘nash vaqtidagi tig‘izlikka mos alohida jadval oladi.
+        dirs[dir] = departures.map((dep) => ({
+          dep,
+          D: makeDir(line, dirPts, offset, dep, true),
+        }));
+      }
+      return { line, dirs };
+    });
 
   return {
-
     getTrains(t) {
       const out = [];
       for (const { line, dirs } of items) {
         for (const dir of ["fwd", "back"]) {
-          const D = dirs[dir];
-          const last = D.pts[D.pts.length - 1];
-          for (const dep of D.deps) {
+          for (const trip of dirs[dir]) {
+            const { dep, D } = trip;
             let e = t - dep;
+            // Yarim tundan keyin oldingi kunning oxirgi qatnovlari yo‘lda qolishi mumkin.
             if (e < 0) e += DAY;
             if (e > D.total) continue;
             const s = stateAt(D, e);
             if (!s) continue;
+            const last = D.pts[D.pts.length - 1];
             out.push({
               ...s, id: `${line.id}-${dir}-${dep}`, lineId: line.id, line,
               color: line.color, dir, dep, terminal: last.name,
@@ -183,18 +228,27 @@ function buildEngine(routes) {
       const res = {};
       if (!it) return res;
       for (const dir of ["fwd", "back"]) {
-        const D = it.dirs[dir];
-        const idx = D.pts.findIndex((p) => p.id === stationId);
-        if (idx < 0) continue;
         const list = [];
-        for (const dep of D.deps) {
+        for (const trip of it.dirs[dir]) {
+          const { dep, D } = trip;
+          const idx = D.pts.findIndex((p) => p.id === stationId);
+          if (idx < 0) continue;
           const arr = dep + D.a[idx];
           const etas = [arr - t, arr - t - DAY, arr - t + DAY].filter((x) => x >= -5);
           if (!etas.length) continue;
-          list.push({ eta: Math.max(0, Math.min(...etas)), at: arr % DAY });
+          list.push({ eta: Math.max(0, Math.min(...etas)), at: ((arr % DAY) + DAY) % DAY });
         }
         list.sort((x, y) => x.eta - y.eta);
-        res[dir] = { list: list.slice(0, count), terminal: D.pts[D.pts.length - 1].name, atEnd: idx === D.pts.length - 1 };
+        const first = it.dirs[dir][0];
+        if (first) {
+          const D = first.D;
+          const idx = D.pts.findIndex((p) => p.id === stationId);
+          if (idx >= 0) res[dir] = {
+            list: list.slice(0, count),
+            terminal: D.pts[D.pts.length - 1].name,
+            atEnd: idx === D.pts.length - 1,
+          };
+        }
       }
       return res;
     },
@@ -350,6 +404,10 @@ function useTashkentClock() {
 
 function TrainsLayer({ engineRef, getSec, lineFilterRef, selectedRef, followRef, onPickRef, onStopFollowRef }) {
   const map = useMap();
+  // useEffect bir marta ishga tushadi; vaqt funksiyasini ref orqali yangilab turamiz,
+  // aks holda animatsiya birinchi render vaqtidan qotib qoladi.
+  const getSecRef = useRef(getSec);
+  getSecRef.current = getSec;
 
   useEffect(() => {
     const group = L.layerGroup().addTo(map);
@@ -360,7 +418,7 @@ function TrainsLayer({ engineRef, getSec, lineFilterRef, selectedRef, followRef,
       const engine = engineRef.current;
       if (engine) {
         const seen = new Set();
-        for (const tr of engine.getTrains(getSec())) {
+        for (const tr of engine.getTrains(getSecRef.current())) {
           const f = lineFilterRef.current;
           if (f !== "all" && f !== tr.lineId) continue;
           seen.add(tr.id);
@@ -414,7 +472,7 @@ function TrainsLayer({ engineRef, getSec, lineFilterRef, selectedRef, followRef,
 }
 
 const panelCls =
-  "absolute left-2 right-2 top-14 z-[1300] max-h-[42dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] bg-[var(--panel)]/95 p-3 text-[var(--text)] shadow-2xl backdrop-blur sm:left-auto sm:right-4 sm:top-4 sm:max-h-[65vh] sm:w-[390px] sm:p-5";
+  "absolute bottom-2 left-2 right-2 top-auto z-[1300] max-h-[42dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] bg-[var(--panel)]/95 p-3 text-[var(--text)] shadow-2xl backdrop-blur sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:max-h-[65vh] sm:w-[390px] sm:p-5";
 
 function StationPanel({ station, currentSec, engine, trainsOnLine, onClose }) {
   const line = station.line;
@@ -503,74 +561,87 @@ function StationPanel({ station, currentSec, engine, trainsOnLine, onClose }) {
 }
 
 function TrainPanel({ train, currentSec, follow, onFollow, onClose }) {
+  const lineColor = train?.color || "#ff4057";
+
   return (
-    <section className={panelCls}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 text-xs font-bold tracking-widest" style={{ color: train?.color }}>
-            <TrainFront size={14} /> POYEZD
+    <section className="absolute bottom-2 left-2 right-2 top-auto z-[1300] max-h-[46dvh] overflow-y-auto overscroll-contain rounded-[22px] border border-white/15 bg-[#101522]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white shadow-[0_24px_80px_rgba(0,0,0,.6)] backdrop-blur-xl sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:max-h-[80vh] sm:w-[410px] sm:p-5">
+      <div className="absolute inset-x-0 top-0 h-[5px] rounded-t-[24px]" style={{ background: `linear-gradient(90deg, ${lineColor}, #ff4057 55%, transparent)` }} />
+      <div className="flex items-start justify-between gap-3 pt-2">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.22em]" style={{ color: lineColor }}>
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full" style={{ backgroundColor: lineColor, boxShadow: `0 0 14px ${lineColor}` }} />
+            Poyezd simulyatsiyasi
           </p>
-          <h2 className="mt-2 text-xl font-bold">{train ? train.line.name : "Poyezd"}</h2>
-          {train && <p className="mt-1 text-sm text-[var(--muted)]">→ {train.terminal} tomon</p>}
+          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{train ? train.line.name : "Poyezd"}</h2>
+          <p className="mt-1 text-sm text-slate-300">{train ? `Yo‘nalish: ${train.terminal} tomon` : "Marshrut yakunlandi"}</p>
         </div>
-        <button onClick={onClose} className="cursor-pointer rounded-lg p-2 hover:bg-[var(--soft)]" aria-label="Yopish">
+        <button onClick={onClose} className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-slate-300 transition hover:bg-white/10 hover:text-white" aria-label="Yopish">
           <X size={18} />
         </button>
       </div>
 
       {!train ? (
-        <p className="mt-4 rounded-xl bg-[var(--soft)] p-4 text-sm text-[var(--muted)]">
-          Poyezd marshrutni tugatdi.
-        </p>
+        <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">Poyezd marshrutni tugatdi.</p>
       ) : (
-        <div className="mt-4 rounded-xl bg-[var(--soft)] p-4 text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="text-[var(--muted)]">Holati</span>
-            <span className="text-right font-semibold">
-              {train.moving ? `${train.from.name} → ${train.to.name}` : `Bekatda: ${train.from.name}`}
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between gap-3">
-            <span className="text-[var(--muted)]">
-              {train.moving ? "Keyingi bekatga qolgan vaqt" : train.to ? "Jo‘nashgacha qolgan vaqt" : "Marshrut tugashiga"}
-            </span>
-            <span className="font-mono font-bold text-[var(--accent)]">{fmtMS(train.eta)}</span>
-          </div>
-          {train.to && (
-            <>
-              <div className="mt-2 flex justify-between gap-3">
-                <span className="text-[var(--muted)]">Keyingi bekat</span>
-                <span className="text-right font-semibold">{train.to.name}</span>
+        <>
+          <div className="mt-3 rounded-[18px] border border-emerald-400/30 bg-gradient-to-br from-emerald-950/70 via-[#101c27] to-[#101522] p-3 shadow-[inset_0_0_35px_rgba(16,185,129,.08)] sm:mt-5 sm:rounded-[20px] sm:p-5">
+            <div className="flex items-center gap-2 text-[11px] font-black tracking-[.2em] text-emerald-300">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
+              POEZD HOLATI
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-200">{train.moving ? "Keyingi bekatga yaqinlashmoqda" : "Bekatda to‘xtab turibdi"}</p>
+            <div className="mt-1 flex items-end gap-2">
+              <span className="font-mono text-[clamp(2.25rem,11vw,3.1rem)] font-black leading-none tracking-[-.07em] text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,.45)] sm:text-[64px]">{fmtMS(train.eta)}</span>
+              <span className="mb-1 text-sm font-bold text-emerald-100">daq:son</span>
+            </div>
+            <div className="mt-3 flex items-start gap-2 text-xs font-semibold text-rose-300 sm:mt-4 sm:text-sm">
+              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-rose-400 shadow-[0_0_10px_#fb7185]" />
+              <span>{train.moving ? "Harakatda: keyingi bekatga yo‘l olmoqda" : "Poyezd bekatda, jo‘nashni kutmoqda"}</span>
+            </div>
+            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-700/80">
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-green-300 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,.65)] transition-all duration-500" style={{ width: `${train.moving ? 72 : 38}%` }} />
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 sm:mt-4">
+              <span className="text-sm font-semibold text-slate-300">Vagonlar</span>
+              <div className="flex items-center gap-2" aria-label="Vagonlar indikatori">
+                {["#facc15", "#fb7185", "#facc15", "#6ee7b7"].map((color, i) => (
+                  <span key={i} className="h-3.5 w-6 rounded-md shadow-[0_0_9px_rgba(255,255,255,.08)]" style={{ backgroundColor: color }} />
+                ))}
               </div>
-              {train.nextArrivalEta != null && (
-                <div className="mt-3 rounded-lg border border-[var(--border)] p-3">
-                  <div className="text-xs text-[var(--muted)]">Keyingi bekatga yetib borish (taxminiy)</div>
-                  <div className="mt-1 text-xl font-black tabular-nums">{fmtClock(currentSec + train.nextArrivalEta)}</div>
-                  <div className="mt-1 text-xs text-[var(--muted)]">
-                    Qolgan vaqt: {fmtDur(train.nextArrivalEta)}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          <div className="mt-2 flex justify-between gap-3">
-            <span className="text-[var(--muted)]">Taxminiy tezlik</span>
-            <span>{train.moving ? `~${Math.round(train.speed)} km/soat` : "to‘xtagan"}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-3">
-            <span className="text-[var(--muted)]">Terminaldan jo‘nagan</span>
-            <span>{fmtClock(train.dep)}</span>
+            </div>
           </div>
 
-          <button
-            onClick={onFollow}
-            className={`mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-semibold ${
-              follow ? "bg-green-500 text-black border-transparent" : "border-[var(--border)] hover:bg-[var(--soft)]"
-            }`}
-          >
-            <Crosshair size={16} /> {follow ? "Kuzatilmoqda" : "Poyezdni kuzatish"}
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+              <Clock3 size={17} className="text-emerald-300" />
+              Keyingi bekat
+            </div>
+            <span className="max-w-[55%] truncate text-right text-sm font-bold">{train.to?.name || "Oxirgi bekat"}</span>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[.045] p-3">
+              <p className="text-xs text-slate-400">Taxminiy tezlik</p>
+              <p className="mt-1 text-xl font-black">{train.moving ? `~${Math.round(train.speed)}` : "0"} <span className="text-xs font-semibold text-slate-400">km/soat</span></p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[.045] p-3">
+              <p className="text-xs text-slate-400">Jo‘nash vaqti</p>
+              <p className="mt-1 font-mono text-xl font-black">{fmtClock(train.dep)}</p>
+            </div>
+          </div>
+
+          {train.to && train.nextArrivalEta != null && (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[.045] p-4">
+              <div className="text-xs text-slate-400">Bekatga yetib borish vaqti (taxminiy)</div>
+              <div className="mt-1 text-2xl font-black tabular-nums">{fmtClock(currentSec + train.nextArrivalEta)}</div>
+              <div className="mt-1 text-xs text-slate-400">Qolgan vaqt: {fmtDur(train.nextArrivalEta)}</div>
+            </div>
+          )}
+
+          <button onClick={onFollow} className={`mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-black transition ${follow ? "border-emerald-300 bg-emerald-400 text-slate-950 shadow-[0_0_25px_rgba(52,211,153,.2)]" : "border-emerald-400/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"}`}>
+            <Crosshair size={17} /> {follow ? "Poyezd kuzatilmoqda" : "Poyezdni kuzatish"}
           </button>
-        </div>
+        </>
       )}
     </section>
   );
@@ -808,8 +879,8 @@ export default function App() {
         </aside>
 
         <main className="relative order-1 min-h-[55vh] min-w-0 lg:order-2">
-          <button onClick={() => setSidebarOpen(true)} aria-label="Metro menyusini ochish" className="absolute left-3 top-3 z-[1200] flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel)]/95 px-3 py-2 text-sm font-semibold text-[var(--text)] shadow-lg backdrop-blur lg:hidden">☰ Liniyalar</button>
-          <MapContainer center={[41.3111, 69.2797]} zoom={12} className="h-[calc(100dvh-82px)] min-h-[420px] w-full sm:h-[65vh] sm:min-h-[420px] lg:h-full lg:min-h-[calc(100vh-85px)]">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Metro menyusini ochish" className="absolute left-3 top-3 z-[1200] flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel)]/95 px-3 py-2 text-sm font-semibold text-[var(--text)] shadow-lg backdrop-blur lg:hidden">☰ Liniyalar</button>
+          <MapContainer center={[41.3111, 69.2797]} zoom={12} className="h-full min-h-0 w-full">
             <TileLayer
               key={theme}
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
