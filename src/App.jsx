@@ -6,7 +6,7 @@ import {
   TrainFront, Search, MapPin, Clock3, RefreshCw, X, CircleCheck, CircleX,
   Sun, Moon, Crosshair,
 } from "lucide-react";
-
+import metro_logo from "./assets/metro_logo.png";
 const DWELL = 25;
 const TERM_DWELL = 20;
 const DAY = 86400;
@@ -272,8 +272,7 @@ const fmtDur = (s) => {
   return h ? `${h} s ${m} daq` : `${m} daq`;
 };
 
-const DATA_URL =
-  "https://raw.githubusercontent.com/JamshidSod/tashkent-metro-accessibility/main/data/stations.geojson";
+const DATA_URL = "https://raw.githubusercontent.com/JamshidSod/tashkent-metro-accessibility/main/data/stations.geojson";
 
 const TZ = 5 * 3600 * 1000;
 
@@ -404,8 +403,6 @@ function useTashkentClock() {
 
 function TrainsLayer({ engineRef, getSec, lineFilterRef, selectedRef, followRef, onPickRef, onStopFollowRef }) {
   const map = useMap();
-  // useEffect bir marta ishga tushadi; vaqt funksiyasini ref orqali yangilab turamiz,
-  // aks holda animatsiya birinchi render vaqtidan qotib qoladi.
   const getSecRef = useRef(getSec);
   getSecRef.current = getSec;
 
@@ -471,8 +468,7 @@ function TrainsLayer({ engineRef, getSec, lineFilterRef, selectedRef, followRef,
   return null;
 }
 
-const panelCls =
-  "absolute bottom-2 left-2 right-2 top-auto z-[1300] max-h-[42dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] bg-[var(--panel)]/95 p-3 text-[var(--text)] shadow-2xl backdrop-blur sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:max-h-[65vh] sm:w-[390px] sm:p-5";
+const panelCls = "absolute bottom-2 left-2 right-2 top-auto z-[1300] max-h-[42dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--border)] bg-[var(--panel)]/95 p-3 text-[var(--text)] shadow-2xl backdrop-blur sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:max-h-[65vh] sm:w-[390px] sm:p-5";
 
 function StationPanel({ station, currentSec, engine, trainsOnLine, onClose }) {
   const line = station.line;
@@ -564,81 +560,81 @@ function TrainPanel({ train, currentSec, follow, onFollow, onClose }) {
   const lineColor = train?.color || "#ff4057";
 
   return (
-    <section className="absolute bottom-2 left-2 right-2 top-auto z-[1300] max-h-[46dvh] overflow-y-auto overscroll-contain rounded-[22px] border border-white/15 bg-[#101522]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white shadow-[0_24px_80px_rgba(0,0,0,.6)] backdrop-blur-xl sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:max-h-[80vh] sm:w-[410px] sm:p-5">
-      <div className="absolute inset-x-0 top-0 h-[5px] rounded-t-[24px]" style={{ background: `linear-gradient(90deg, ${lineColor}, #ff4057 55%, transparent)` }} />
-      <div className="flex items-start justify-between gap-3 pt-2">
+    <section className="absolute bottom-2 left-1 right-auto top-auto z-[1300] w-[min(250px,calc(100vw-1rem))] max-h-[38dvh] overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#101522]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_16px_50px_rgba(0,0,0,.5)] backdrop-blur-xl [scrollbar-width:thin] sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:max-h-[80vh] sm:w-[410px] sm:rounded-[22px] sm:p-5 sm:shadow-[0_24px_80px_rgba(0,0,0,.6)]">
+      <div className="absolute inset-x-0 top-0 h-[3px] rounded-t-[24px]" style={{ background: `linear-gradient(90deg, ${lineColor}, #ff4057 55%, transparent)` }} />
+      <div className="flex items-start justify-between gap-2 pt-1">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.22em]" style={{ color: lineColor }}>
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full" style={{ backgroundColor: lineColor, boxShadow: `0 0 14px ${lineColor}` }} />
+          <p className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] sm:text-[11px] sm:tracking-[.22em]" style={{ color: lineColor }}>
+            <span className="h-2 w-2 animate-pulse rounded-full" style={{ backgroundColor: lineColor, boxShadow: `0 0 14px ${lineColor}` }} />
             Poyezd simulyatsiyasi
           </p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{train ? train.line.name : "Poyezd"}</h2>
-          <p className="mt-1 text-sm text-slate-300">{train ? `Yo‘nalish: ${train.terminal} tomon` : "Marshrut yakunlandi"}</p>
+          <h2 className="mt-1 text-lg font-black tracking-tight sm:mt-2 sm:text-3xl">{train ? train.line.name : "Poyezd"}</h2>
+          <p className="mt-0.5 text-xs text-slate-300 sm:mt-1 sm:text-sm">{train ? `Yo‘nalish: ${train.terminal} tomon` : "Marshrut yakunlandi"}</p>
         </div>
-        <button onClick={onClose} className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-slate-300 transition hover:bg-white/10 hover:text-white" aria-label="Yopish">
+        <button onClick={onClose} className="rounded-lg border cursor-pointer border-white/10 bg-white/5 p-1.5 sm:rounded-xl sm:p-2.5 text-slate-300 transition hover:bg-white/10 hover:text-white" aria-label="Yopish">
           <X size={18} />
         </button>
       </div>
 
       {!train ? (
-        <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">Poyezd marshrutni tugatdi.</p>
+        <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2 text-xs sm:mt-4 sm:rounded-2xl sm:p-4 sm:text-sm text-slate-300">Poyezd marshrutni tugatdi.</p>
       ) : (
         <>
-          <div className="mt-3 rounded-[18px] border border-emerald-400/30 bg-gradient-to-br from-emerald-950/70 via-[#101c27] to-[#101522] p-3 shadow-[inset_0_0_35px_rgba(16,185,129,.08)] sm:mt-5 sm:rounded-[20px] sm:p-5">
-            <div className="flex items-center gap-2 text-[11px] font-black tracking-[.2em] text-emerald-300">
+          <div className="mt-2 rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-950/70 via-[#101c27] to-[#101522] p-2 shadow-[inset_0_0_35px_rgba(16,185,129,.08)] sm:mt-5 sm:rounded-[20px] sm:p-5">
+            <div className="flex items-center gap-2 text-[9px] font-black tracking-[.14em] text-emerald-300 sm:text-[11px] sm:tracking-[.2em]">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
               POEZD HOLATI
             </div>
-            <p className="mt-3 text-sm font-semibold text-slate-200">{train.moving ? "Keyingi bekatga yaqinlashmoqda" : "Bekatda to‘xtab turibdi"}</p>
-            <div className="mt-1 flex items-end gap-2">
-              <span className="font-mono text-[clamp(2.25rem,11vw,3.1rem)] font-black leading-none tracking-[-.07em] text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,.45)] sm:text-[64px]">{fmtMS(train.eta)}</span>
-              <span className="mb-1 text-sm font-bold text-emerald-100">daq:son</span>
+            <p className="mt-1.5 text-xs font-semibold text-slate-200 sm:mt-3 sm:text-sm">{train.moving ? "Keyingi bekatga yaqinlashmoqda" : "Bekatda to‘xtab turibdi"}</p>
+            <div className="mt-1 flex items-end gap-1.5 sm:gap-2">
+              <span className="font-mono text-[clamp(1.65rem,7vw,2rem)] font-black leading-none tracking-[-.07em] text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,.45)] sm:text-[64px]">{fmtMS(train.eta)}</span>
+              <span className="mb-0.5 text-[10px] font-bold text-emerald-100 sm:mb-1 sm:text-sm">daq:son</span>
             </div>
-            <div className="mt-3 flex items-start gap-2 text-xs font-semibold text-rose-300 sm:mt-4 sm:text-sm">
+            <div className="mt-2 flex items-start gap-1.5 text-[10px] font-semibold text-rose-300 sm:mt-4 sm:gap-2 sm:text-sm">
               <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-rose-400 shadow-[0_0_10px_#fb7185]" />
               <span>{train.moving ? "Harakatda: keyingi bekatga yo‘l olmoqda" : "Poyezd bekatda, jo‘nashni kutmoqda"}</span>
             </div>
-            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-700/80">
+            <div className="mt-2 h-1.5 overflow-hidden sm:mt-4 sm:h-2.5 rounded-full bg-slate-700/80">
               <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-green-300 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,.65)] transition-all duration-500" style={{ width: `${train.moving ? 72 : 38}%` }} />
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 sm:mt-4">
-              <span className="text-sm font-semibold text-slate-300">Vagonlar</span>
-              <div className="flex items-center gap-2" aria-label="Vagonlar indikatori">
+            <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2 sm:mt-4 sm:pt-3">
+              <span className="text-xs font-semibold text-slate-300 sm:text-sm">Vagonlar</span>
+              <div className="flex items-center gap-1 sm:gap-2" aria-label="Vagonlar indikatori">
                 {["#facc15", "#fb7185", "#facc15", "#6ee7b7"].map((color, i) => (
-                  <span key={i} className="h-3.5 w-6 rounded-md shadow-[0_0_9px_rgba(255,255,255,.08)]" style={{ backgroundColor: color }} />
+                  <span key={i} className="h-2 w-4 rounded-sm sm:h-3.5 sm:w-6 sm:rounded-md shadow-[0_0_9px_rgba(255,255,255,.08)]" style={{ backgroundColor: color }} />
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[.045] px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[.045] px-2.5 py-2 sm:mt-3 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 sm:gap-2 sm:text-sm">
               <Clock3 size={17} className="text-emerald-300" />
               Keyingi bekat
             </div>
-            <span className="max-w-[55%] truncate text-right text-sm font-bold">{train.to?.name || "Oxirgi bekat"}</span>
+            <span className="max-w-[55%] truncate text-right text-xs font-bold sm:text-sm">{train.to?.name || "Oxirgi bekat"}</span>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[.045] p-3">
-              <p className="text-xs text-slate-400">Taxminiy tezlik</p>
-              <p className="mt-1 text-xl font-black">{train.moving ? `~${Math.round(train.speed)}` : "0"} <span className="text-xs font-semibold text-slate-400">km/soat</span></p>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-3 sm:gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[.045] p-2 sm:rounded-2xl sm:p-3">
+              <p className="text-[10px] text-slate-400 sm:text-xs">Taxminiy tezlik</p>
+              <p className="mt-0.5 text-base font-black sm:mt-1 sm:text-xl">{train.moving ? `~${Math.round(train.speed)}` : "0"} <span className="text-[10px] font-semibold text-slate-400 sm:text-xs">km/soat</span></p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[.045] p-3">
+            <div className="rounded-xl border border-white/10 bg-white/[.045] p-2 sm:rounded-2xl sm:p-3">
               <p className="text-xs text-slate-400">Jo‘nash vaqti</p>
-              <p className="mt-1 font-mono text-xl font-black">{fmtClock(train.dep)}</p>
+              <p className="mt-0.5 font-mono text-base font-black sm:mt-1 sm:text-xl">{fmtClock(train.dep)}</p>
             </div>
           </div>
 
           {train.to && train.nextArrivalEta != null && (
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[.045] p-4">
+            <div className="mt-3 hidden rounded-2xl border border-white/10 bg-white/[.045] p-4 sm:block">
               <div className="text-xs text-slate-400">Bekatga yetib borish vaqti (taxminiy)</div>
               <div className="mt-1 text-2xl font-black tabular-nums">{fmtClock(currentSec + train.nextArrivalEta)}</div>
               <div className="mt-1 text-xs text-slate-400">Qolgan vaqt: {fmtDur(train.nextArrivalEta)}</div>
             </div>
           )}
 
-          <button onClick={onFollow} className={`mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border py-3 text-sm font-black transition ${follow ? "border-emerald-300 bg-emerald-400 text-slate-950 shadow-[0_0_25px_rgba(52,211,153,.2)]" : "border-emerald-400/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"}`}>
+          <button onClick={onFollow} className={`mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border py-2 text-xs font-black sm:mt-4 sm:rounded-2xl sm:py-3 sm:text-sm transition ${follow ? "border-emerald-300 bg-emerald-400 text-slate-950 shadow-[0_0_25px_rgba(52,211,153,.2)]" : "border-emerald-400/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"}`}>
             <Crosshair size={17} /> {follow ? "Poyezd kuzatilmoqda" : "Poyezdni kuzatish"}
           </button>
         </>
@@ -751,8 +747,9 @@ export default function App() {
       <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-4 md:px-7">
         <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="shrink-0 rounded-xl bg-[var(--accent-bg)] p-2.5 text-[var(--accent)] sm:p-3">
-              <TrainFront size={27} />
+            <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-full border-2 border-secondary sm:h-[58px] sm:w-[58px]">
+              <img src={metro_logo} alt="Metro-Go"
+                className="h-[47px] w-[47px] scale-110 object-contain sm:h-18 sm:w-18"/>
             </div>
             <div className="min-w-0">
               <h1 className="whitespace-nowrap text-sm font-black tracking-wide sm:text-lg md:text-2xl">TASHKENT METRO</h1>
