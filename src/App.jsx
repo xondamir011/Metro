@@ -97,7 +97,6 @@ function isPeakTime(t) {
 function stationDwellSec(stationName, peak) {
   const key = normalize(stationName);
   if (!TRANSFER_STATIONS.has(key)) return DWELL;
-  // Almashuv bekatlarida yo‘lovchi oqimi sababli poyezd ko‘proq kutadi.
   return peak ? 115 : 65;
 }
 
@@ -111,7 +110,7 @@ function makeDir(line, pts, offsetSec, departureAt = null, singleDeparture = fal
   const dwell = pts.map((p, i) =>
     i === 0 ? 0 : stationDwellSec(p.name, peak)
   );
-  // Tig‘iz vaqtda almashuv bekatlari oldidagi segmentlarda tezlik pasayadi.
+
   const segmentWeights = dist.map((d, i) => {
     const nextKey = normalize(pts[i + 1]?.name);
     const nearTransfer = TRANSFER_STATIONS.has(nextKey);
@@ -190,7 +189,6 @@ function buildEngine(routes) {
         for (let t = line.startSec + offset; t < line.endSec; t += headwaySec(line, t)) {
           departures.push(Math.round(t));
         }
-        // Har bir qatnov o‘z jo‘nash vaqtidagi tig‘izlikka mos alohida jadval oladi.
         dirs[dir] = departures.map((dep) => ({
           dep,
           D: makeDir(line, dirPts, offset, dep, true),
@@ -207,7 +205,6 @@ function buildEngine(routes) {
           for (const trip of dirs[dir]) {
             const { dep, D } = trip;
             let e = t - dep;
-            // Yarim tundan keyin oldingi kunning oxirgi qatnovlari yo‘lda qolishi mumkin.
             if (e < 0) e += DAY;
             if (e > D.total) continue;
             const s = stateAt(D, e);
@@ -295,7 +292,7 @@ function initialTheme() {
   try {
     const s = localStorage.getItem("metro-theme");
     if (s === "dark" || s === "light") return s;
-  } catch {}
+  } catch { }
   return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
@@ -560,7 +557,7 @@ function TrainPanel({ train, currentSec, follow, onFollow, onClose }) {
   const lineColor = train?.color || "#ff4057";
 
   return (
-    <section className="absolute bottom-2 left-1 right-auto top-auto z-[1300] w-[min(250px,calc(100vw-1rem))] max-h-[38dvh] overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#101522]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_16px_50px_rgba(0,0,0,.5)] backdrop-blur-xl [scrollbar-width:thin] sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:max-h-[80vh] sm:w-[410px] sm:rounded-[22px] sm:p-5 sm:shadow-[0_24px_80px_rgba(0,0,0,.6)]">
+    <section className="absolute bottom-2 left-1 right-auto top-auto z-[1300] w-[min(235px,calc(100vw-1rem))] max-h-[52dvh] overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#101522]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-white shadow-[0_16px_50px_rgba(0,0,0,.5)] backdrop-blur-xl [scrollbar-width:thin] sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:max-h-[80vh] sm:w-[410px] sm:rounded-[22px] sm:p-5 sm:shadow-[0_24px_80px_rgba(0,0,0,.6)]">
       <div className="absolute inset-x-0 top-0 h-[3px] rounded-t-[24px]" style={{ background: `linear-gradient(90deg, ${lineColor}, #ff4057 55%, transparent)` }} />
       <div className="flex items-start justify-between gap-2 pt-1">
         <div className="min-w-0">
@@ -658,7 +655,7 @@ export default function App() {
   const currentSec = clock.getSec();
 
   useEffect(() => {
-    try { localStorage.setItem("metro-theme", theme); } catch {}
+    try { localStorage.setItem("metro-theme", theme); } catch { }
   }, [theme]);
 
   async function loadStations() {
@@ -725,8 +722,8 @@ export default function App() {
   const lineFilterRef = useRef(activeLine);
   const selectedRef = useRef(selectedTrain);
   const followRef = useRef(null);
-  const onPickRef = useRef(() => {});
-  const onStopFollowRef = useRef(() => {});
+  const onPickRef = useRef(() => { });
+  const onStopFollowRef = useRef(() => { });
   engineRef.current = engine;
   lineFilterRef.current = activeLine;
   selectedRef.current = selectedTrain;
@@ -749,12 +746,9 @@ export default function App() {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-full border-2 border-secondary sm:h-[58px] sm:w-[58px]">
               <img src={metro_logo} alt="Metro-Go"
-                className="h-[47px] w-[47px] scale-110 object-contain sm:h-18 sm:w-18"/>
-            </div>
-            <div className="min-w-0">
-              <h1 className="whitespace-nowrap text-sm font-black tracking-wide sm:text-lg md:text-2xl">TASHKENT METRO</h1>
-              <p className="hidden text-xs text-[var(--muted)] sm:block">Metro xaritasi</p>
-            </div>
+                className="h-[47px] w-[47px] scale-110 object-contain sm:h-18 sm:w-18" />
+            </div>      
+              <h1 className="whitespace-nowrap text-sm font-black tracking-wide sm:text-lg md:text-2xl">METRO-GO</h1>  
           </div>
           <div className="shrink-0 border-l border-[var(--border)] pl-3 text-right sm:ml-2 sm:pl-4">
             <p className="text-[9px] uppercase tracking-wide text-[var(--muted)] sm:text-[10px]">Toshkent vaqti</p>
@@ -766,8 +760,7 @@ export default function App() {
           <button
             onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm hover:bg-[var(--soft)] sm:flex-none"
-            aria-label="Mavzuni almashtirish"
-          >
+            aria-label="Mavzuni almashtirish">
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             {theme === "dark" ? "Yorug‘" : "Qorong‘i"}
           </button>
@@ -853,9 +846,8 @@ export default function App() {
               <button
                 key={s.id}
                 onClick={() => { setSelected(s); setSelectedTrain(null); setFollow(false); setSidebarOpen(false); }}
-                className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm ${
-                  selected?.id === s.id ? "bg-[var(--accent-bg)] text-[var(--accent)]" : "hover:bg-[var(--soft)]"
-                }`}
+                className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm ${selected?.id === s.id ? "bg-[var(--accent-bg)] text-[var(--accent)]" : "hover:bg-[var(--soft)]"
+                  }`}
               >
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.line?.color || "#94a3b8" }} />
                 <span>{s.name}</span>
@@ -880,9 +872,7 @@ export default function App() {
           <MapContainer center={[41.3111, 69.2797]} zoom={12} className="h-full min-h-0 w-full">
             <TileLayer
               key={theme}
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url={TILES[theme]}
-            />
+              url={TILES[theme]} />
 
             {routeLines.map(({ line, pts }) => {
               const segments = [];
@@ -914,8 +904,8 @@ export default function App() {
                 icon={stationIcon(s.line?.color || "#94a3b8", selected?.id === s.id)}
                 eventHandlers={{
                   click: () => { setSelected(s); setSelectedTrain(null); setFollow(false); },
-                }}
-              >
+                }}>
+
                 <Popup>
                   <strong>{s.name}</strong>
                   <br />
@@ -964,17 +954,19 @@ export default function App() {
           ) : null}
         </main>
       </div>
-
-      <footer className="border-t border-[var(--border)] bg-[var(--panel)] px-4 py-5 sm:px-6">
-        <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-2 text-center sm:flex-row sm:text-left">
-          <div className="flex items-center gap-2 font-bold tracking-wide">
-            <TrainFront size={23} className="text-[var(--accent)]" />
-            <span>TASHKENT METRO</span>
+      
+      <footer className="relative z-10 border-t border-[var(--border)] bg-[var(--panel)] px-4 py-6 sm:px-6 sm:py-5">
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between sm:gap-5 sm:text-left">
+          <div className="flex items-center justify-center gap-3 sm:justify-start">
+            <div className="flex h-15 w-15 shrink-0 items-center justify-center sm:h-16 sm:w-16">
+              <img src={metro_logo} alt="Metro-Go" className="h-[50px] w-[50px] border-2 border-secondary rounded-full scale-110 object-contain sm:h-15 sm:w-15" />
+            </div>
+            <span className="whitespace-nowrap text-base font-black tracking-wide sm:text-lg md:text-xl">METRO-GO</span>
           </div>
-          <p className="leading-5 text-white text-[var(--muted)]">
-            Barcha huquqlar ximoyalangan!
+          <p className="leading-5 text-white">
+            Barcha huquqlar himoyalangan. 
           </p>
-          <p className="text-[var(--muted)] text-white">© 2026 Tashkent Metro</p>
+          <p className="text-white">© 2026 Tashkent Metro</p>
         </div>
       </footer>
     </div>
