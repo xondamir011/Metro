@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import {
-  TrainFront, Search, MapPin, Clock3, RefreshCw, X, CircleCheck, CircleX,
-  Sun, Moon, Crosshair,
-} from "lucide-react";
+import { Search, MapPin, Clock3, RefreshCw, X, CircleCheck, CircleX, Crosshair } from "lucide-react";
 import metro_logo from "./assets/metro_logo.png";
 const DWELL = 25;
 const TERM_DWELL = 20;
@@ -272,29 +269,6 @@ const fmtDur = (s) => {
 const DATA_URL = "https://raw.githubusercontent.com/JamshidSod/tashkent-metro-accessibility/main/data/stations.geojson";
 
 const TZ = 5 * 3600 * 1000;
-
-const THEME_CSS = `
-[data-theme="dark"]{--bg:#080b12;--panel:#0c111c;--card:#151c29;--soft:rgba(255,255,255,.05);--border:rgba(255,255,255,.1);--text:#fff;--muted:#94a3b8;--accent:#4ade80;--accent-bg:rgba(34,197,94,.15)}
-[data-theme="light"]{--bg:#f3f5f9;--panel:#ffffff;--card:#eef1f6;--soft:rgba(15,23,42,.06);--border:rgba(15,23,42,.14);--text:#0f172a;--muted:#475569;--accent:#15803d;--accent-bg:rgba(22,163,74,.12)}
-.metro-train-icon{overflow:visible}
-.metro-train-icon .t-svg{transform-origin:50% 50%;filter:drop-shadow(0 0 5px rgba(0,0,0,.45))}
-.metro-train-icon.t-sel .t-svg{filter:drop-shadow(0 0 9px #fff)}
-.metro-train-icon.t-sel::before{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid #fff;animation:metroPing 1.4s ease-out infinite}
-@keyframes metroPing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
-`;
-
-const TILES = {
-  dark: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  light: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-};
-
-function initialTheme() {
-  try {
-    const s = localStorage.getItem("metro-theme");
-    if (s === "dark" || s === "light") return s;
-  } catch { }
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
 
 const normalize = (value = "") =>
   value
@@ -641,7 +615,6 @@ function TrainPanel({ train, currentSec, follow, onFollow, onClose }) {
 }
 
 export default function App() {
-  const [theme, setTheme] = useState(initialTheme);
   const [stations, setStations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [selectedTrain, setSelectedTrain] = useState(null);
@@ -653,10 +626,6 @@ export default function App() {
   const [error, setError] = useState("");
   const clock = useTashkentClock();
   const currentSec = clock.getSec();
-
-  useEffect(() => {
-    try { localStorage.setItem("metro-theme", theme); } catch { }
-  }, [theme]);
 
   async function loadStations() {
     setLoading(true);
@@ -738,32 +707,94 @@ export default function App() {
   const routeLines = routes.filter((r) => activeLine === "all" || activeLine === r.line.id);
 
   return (
-    <div data-theme={theme} className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <style>{THEME_CSS}</style>
-
-      <header className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-4 md:px-7">
-        <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="flex h-15 w-15 shrink-0 items-center justify-center rounded-full border-2 border-secondary sm:h-[58px] sm:w-[58px]">
-              <img src={metro_logo} alt="Metro-Go"
-                className="h-[47px] w-[47px] scale-110 object-contain sm:h-18 sm:w-18" />
-            </div>      
-              <h1 className="whitespace-nowrap text-sm font-black tracking-wide sm:text-lg md:text-2xl">METRO-GO</h1>  
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      <header className="relative z-50 flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-1.5 md:px-7">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto lg:flex-1">
+          <div className="flex min-w-0 items-center">
+            <div className="flex h-[76px] min-w-0 items-center overflow-visible sm:h-[70px]">
+              <img
+                src={metro_logo}
+                alt="Metro-Go"
+                className="h-[65px] w-auto max-w-none shrink-0 rounded-full object-contain sm:h-[65px]"
+              />
+            </div>
           </div>
-          <div className="shrink-0 border-l border-[var(--border)] pl-3 text-right sm:ml-2 sm:pl-4">
-            <p className="text-[9px] uppercase tracking-wide text-[var(--muted)] sm:text-[10px]">Toshkent vaqti</p>
-            <p className="font-mono text-lg font-bold tabular-nums sm:text-xl md:text-2xl">{fmtHMS(currentSec)}</p>
+
+          <div className="shrink-0 border-l border-[var(--border)] pl-3 text-right sm:ml-2 sm:pl-4 lg:hidden">
+            <p className="text-[9px] uppercase tracking-wide text-[var(--muted)] sm:text-[10px]">
+              Toshkent vaqti
+            </p>
+            <p className="font-mono text-lg font-bold tabular-nums sm:text-xl">
+              {fmtHMS(currentSec)}
+            </p>
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
-          <button
-            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm hover:bg-[var(--soft)] sm:flex-none"
-            aria-label="Mavzuni almashtirish">
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            {theme === "dark" ? "Yorug‘" : "Qorong‘i"}
-          </button>
+        <div className="hidden lg:absolute lg:left-1/2 lg:top-1/2 lg:block lg:-translate-x-1/2 lg:-translate-y-1/2 lg:text-center">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
+            Toshkent vaqti
+          </p>
+          <p className="font-mono text-2xl font-bold tabular-nums">
+            {fmtHMS(currentSec)}
+          </p>
+        </div>
+
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:gap-3">
+          <div className="dropdown">
+            <div tabIndex={0} role="button" className="btn m-2">
+              Theme
+              <svg
+                width="12px"
+                height="12px"
+                className="inline-block h-2 w-2 fill-current opacity-60"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 2048 2048">
+                <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
+              </svg>
+            </div>
+            <ul tabIndex={-1} className="dropdown-content z-50 bg-base-300 rounded-box w-52 p-2 shadow-2xl">
+              <li>
+                <input
+                  type="radio"
+                  name="theme-dropdown"
+                  className="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+                  aria-label="Dark"
+                  value="dark" />
+              </li>
+              <li>
+                <input
+                  type="radio"
+                  name="theme-dropdown"
+                  className="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+                  aria-label="Valentine"
+                  value="valentine" />
+              </li>
+              <li>
+                <input
+                  type="radio"
+                  name="theme-dropdown"
+                  className="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+                  aria-label="Synthwave"
+                  value="synthwave" />
+              </li>
+              <li>
+                <input
+                  type="radio"
+                  name="theme-dropdown"
+                  className="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+                  aria-label="Winter"
+                  value="winter" />
+              </li>
+              <li>
+                <input
+                  type="radio"
+                  name="theme-dropdown"
+                  className="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+                  aria-label="Aqua"
+                  value="aqua" />
+              </li>
+            </ul>
+          </div>
 
           <button
             onClick={loadStations}
@@ -867,12 +898,13 @@ export default function App() {
 
         </aside>
 
-        <main className="relative order-1 min-h-[55vh] min-w-0 lg:order-2">
-          <button onClick={() => setSidebarOpen(true)} aria-label="Metro menyusini ochish" className="absolute left-3 top-3 z-[1200] flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel)]/95 px-3 py-2 text-sm font-semibold text-[var(--text)] shadow-lg backdrop-blur lg:hidden">☰ Liniyalar</button>
+        <main className="relative z-0 order-1 min-h-[55vh] min-w-0 lg:order-2">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Metro menyusini ochish" className="absolute left-3 top-3 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel)]/95 px-3 py-2 text-sm font-semibold text-[var(--text)] shadow-lg backdrop-blur lg:hidden">☰ Liniyalar</button>
           <MapContainer center={[41.3111, 69.2797]} zoom={12} className="h-full min-h-0 w-full">
             <TileLayer
-              key={theme}
-              url={TILES[theme]} />
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
             {routeLines.map(({ line, pts }) => {
               const segments = [];
@@ -954,18 +986,18 @@ export default function App() {
           ) : null}
         </main>
       </div>
-      
+
       <footer className="relative z-10 border-t border-[var(--border)] bg-[var(--panel)] px-4 py-6 sm:px-6 sm:py-5">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between sm:gap-5 sm:text-left">
-          <div className="flex items-center justify-center gap-3 sm:justify-start">
-            <div className="flex h-15 w-15 shrink-0 items-center justify-center sm:h-16 sm:w-16">
-              <img src={metro_logo} alt="Metro-Go" className="h-[50px] w-[50px] border-2 border-secondary rounded-full scale-110 object-contain sm:h-15 sm:w-15" />
-            </div>
-            <span className="whitespace-nowrap text-base font-black tracking-wide sm:text-lg md:text-xl">METRO-GO</span>
+          <div className="flex h-[76px] min-w-0 items-center overflow-visible sm:h-[82px]">
+            <img src={metro_logo} alt="Metro-Go"
+              className="h-[65px] w-auto rounded-full max-w-none mb-3 shrink-0 object-contain sm:h-[80px]" />
           </div>
+
           <p className="leading-5 text-white">
-            Barcha huquqlar himoyalangan. 
+            Barcha huquqlar himoyalangan.
           </p>
+
           <p className="text-white">© 2026 Tashkent Metro</p>
         </div>
       </footer>
